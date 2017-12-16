@@ -1,0 +1,1 @@
+Cron job for git clone should be running.

@@ -1,0 +1,16 @@
+image:
+  repository: indiehosters/git
+  tag: latest
+  pullPolicy: IfNotPresent
+git:
+  src:
+    user: "mirror1"
+    password: "23"
+    url: "gitlab.com/123"
+    proto: "https"
+  dst:
+    user: "mirror2"
+    password: "9"
+    url: "gitlab.com/456"
+    proto: "https"
+schedule: "* * * * *"

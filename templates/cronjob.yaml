@@ -1,0 +1,83 @@
+---
+apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+  name: {{ template "chart.fullname" . }}
+  labels:
+    app: {{ template "chart.name" . }}
+    chart: {{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+spec:
+  concurrencyPolicy: Forbid
+  schedule: {{ .Values.schedule | quote }}
+  jobTemplate:
+    spec:
+      backoffLimit: 0      
+      template:
+        metadata:
+          labels:
+            app: {{ template "chart.name" . }}
+            release: {{ .Release.Name }}
+        spec:
+          restartPolicy: Never
+          containers:
+          - name: {{ .Chart.Name }}
+            image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+            imagePullPolicy: {{ .Values.image.pullPolicy }}
+            env:
+              - name: GIT_DST_PASS
+                valueFrom:
+                  secretKeyRef:
+                    name: {{ template "chart.fullname" . }}
+                    key: GIT_DST_PASSWORD
+              - name: GIT_SRC_PASS
+                valueFrom:
+                  secretKeyRef:
+                    name: {{ template "chart.fullname" . }}
+                    key: GIT_SRC_PASSWORD
+            envFrom:
+            - configMapRef:
+                 name: {{ template "chart.fullname" . }}
+            command:
+              - "/bin/sh"
+              - "-c"
+              - "echo cloning $GIT_SRC_PROTO://$GIT_SRC_USER:$GIT_SRC_URL to $GIT_DST_PROTO://$GIT_DST_USER:$GIT_DST_URL   && git clone --mirror $GIT_SRC_PROTO://$GIT_SRC_USER:$GIT_SRC_PASS@$GIT_SRC_URL clone && cd clone && git push --mirror $GIT_DST_PROTO://$GIT_DST_USER:$GIT_DST_PASS@$GIT_DST_URL" 
+            resources:
+              limits:
+                cpu: 200m
+                memory: 1024Mi
+              requests:
+                cpu: 50m
+                memory: 512Mi 
+---
+kind: Secret
+apiVersion: v1
+metadata:
+  name: {{ template "chart.fullname" . }}
+  labels:
+    app: {{ template "chart.name" . }}
+    chart: {{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+data:
+  GIT_SRC_PASSWORD: {{ .Values.git.src.password | b64enc | quote }}
+  GIT_DST_PASSWORD: {{ .Values.git.dst.password | b64enc | quote }}
+type: Opaque
+---
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: {{ template "chart.fullname" . }}
+  labels:
+    app: {{ template "chart.name" . }}
+    chart: {{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+data:
+  GIT_SRC_USER: {{ .Values.git.src.user | quote }}
+  GIT_DST_USER: {{ .Values.git.dst.user | quote }}
+  GIT_SRC_URL: {{ .Values.git.src.url | quote }}
+  GIT_DST_URL: {{ .Values.git.dst.url | quote }}  
+  GIT_SRC_PROTO: {{ .Values.git.src.proto | quote }}  
+  GIT_DST_PROTO: {{ .Values.git.dst.proto | quote }}  
